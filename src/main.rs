@@ -2,6 +2,7 @@ mod codes;
 mod bits;
 
 use codes::Encoder;
+use codes::ESCAPE;
 use bits::BitWriter;
 
 use std::env;
@@ -12,8 +13,6 @@ use std::process;
 
 const EXPECTED_ARG_NUM: usize = 3;
 const FORMAT_CODE: u8 = 1;
-const ESCAPE: u8 = 31;
-const ESCAPE_BITS: u8 = 3;
 const SHORT_SIZE: u8 = 8;
 
 fn main() {
@@ -58,6 +57,5 @@ fn squeeze(input: File, mut writer: BitWriter, encoder: Encoder) {
     }
 
     /* Flush buffer after compression is finished. */
-
     writer.flush();
 }

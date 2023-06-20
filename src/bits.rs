@@ -3,6 +3,8 @@ use std::fs::File;
 use std::io::Write;
 use std::slice;
 
+use codes::ESCAPE;
+
 const BITS_PER_BYTE: u8 = 8;
 
 const FIVE_BITS: u8 = 5; // Integer value for 5 bits
@@ -12,6 +14,8 @@ const HIGH_5_MASK: u8 = 0xF8u8; // Masks off the 5 higher order bits of char
 const LOW_5_MASK: u8 =  0x0000001Fu8; // Lower 5 bits of int
 const LOW_8_MASK: u8 = 0x000000FFu8; // Lower 8 bits of int
 const HIGH_BIT: u8 = 0x80; // Mask for highest order bit of unsigned char
+
+const ESCAPE_BITS: u8 = 3;
 
 struct BitBuffer {
     bits: u8,
@@ -119,15 +123,22 @@ impl BitWriter {
     }
 
     pub fn flush(&mut self) {
-        // Only flush for non-empty buffer.
-        if self.buffer.bcount > 0 {
-            // Shift over the buffer by 8 - bitcount and dump into file. The 
-            // left shift makes the unused bits zeros.
-            self.buffer.bits = self.buffer.bits << (BITS_PER_BYTE - self.buffer.bcount);
-            self.file.write(slice::from_ref(&self.buffer.bits)).unwrap();
-
-            self.buffer.clear();
+        // Do nothing if buffer is already empty.
+        if self.buffer.bcount == 0 {
+            return
         }
+
+        // Write an extra escape character if there are 1-3 bits in buffer
+        if self.buffer.bcount <= ESCAPE_BITS {
+            self.write_five_bits(ESCAPE);
+        }
+
+        // Shift over the buffer by 8 - bitcount and dump into file. The 
+        // left shift makes the unused bits zeros.
+        self.buffer.bits = self.buffer.bits << (BITS_PER_BYTE - self.buffer.bcount);
+        self.file.write(slice::from_ref(&self.buffer.bits)).unwrap();
+
+        self.buffer.clear();
     }
 }
 

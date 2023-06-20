@@ -3,6 +3,8 @@
 const TABLE_SIZE: u8 = 31;
 const ASCII_SIZE: u16 = 256;
 
+pub const ESCAPE: u8 = 31;
+
 pub struct Encoder {
     letters: [u8; ASCII_SIZE as usize], // Array that converts codes back into letters
     codes: [char; TABLE_SIZE as usize], // 5-bit short code 
