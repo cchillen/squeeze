@@ -6,6 +6,7 @@ use codes::ESCAPE;
 use bits::BitWriter;
 
 use std::env;
+use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -18,23 +19,34 @@ const SHORT_SIZE: u8 = 8;
 fn main() {
     /* Check for valid number of command line arguments */
     let args: Vec<String> = env::args().collect();
+
     if args.len() != EXPECTED_ARG_NUM {
         // Print error message for invalid number of command-line arguments.
         eprintln!("usage: squeeze <infile> <outfile>");
         process::exit(2);
     }
 
+    if let Err(err) = run(args[1].clone(), args[2].clone()) {
+        eprintln!("{}", err);
+        process::exit(2);
+    }
+}
+
+fn run(input_file: String, output_file: String) -> Result<(), Box<dyn Error>> {
     /* Attempt to open files and perform error checking. */
-    let input = File::open(&args[1])
+    let input = File::open(input_file)
         .expect("Could not open input file.");
 
-    let output = File::create(&args[2])
+    let output = File::create(output_file)
         .expect("Could not open output file.");
+
     let writer = BitWriter::new(output);
 
     let encoder = Encoder::new();
 
     squeeze(input, writer, encoder);
+
+    Ok(())
 }
 
 /// Implementation of the compression algorithm.

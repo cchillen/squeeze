@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Write;
 use std::slice;
 
-use codes::ESCAPE;
+use crate::ESCAPE;
 
 const BITS_PER_BYTE: u8 = 8;
 
