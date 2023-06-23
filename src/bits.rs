@@ -9,15 +9,25 @@ use crate::ESCAPE;
 
 const BITS_PER_BYTE: u8 = 8;
 
-const FIVE_BITS: u8 = 5; // Integer value for 5 bits
-const EIGHT_BITS: u8 = 8; // Integer value for 8 bits (1 byte)
-const HIGH_5_MASK: u8 = 0xF8u8; // Masks off the 5 higher order bits of char
+const FIVE_BITS: u8 = 5; // Integer value for 5 bits.
+const EIGHT_BITS: u8 = 8; // Integer value for 8 bits (1 byte).
+const HIGH_5_MASK: u8 = 0xF8u8; // Masks off the 5 higher order bits of byte.
 
-const LOW_5_MASK: u8 =  0x0000001Fu8; // Lower 5 bits of int
-const LOW_8_MASK: u8 = 0x000000FFu8; // Lower 8 bits of int
-const HIGH_BIT: u8 = 0x80; // Mask for highest order bit of unsigned char
+const LOW_5_MASK: u8 =  0x0000001Fu8; // Lower 5 bits of byte.
+const LOW_8_MASK: u8 = 0x000000FFu8; // Lower 8 bits of byte.
+const HIGH_BIT: u8 = 0x80; // Mask for highest order bit of byte.
 
 const ESCAPE_BITS: u8 = 3;
+
+pub struct BitWriter {
+    buffer: BitBuffer,
+    file: File,
+}
+
+pub struct BitReader {
+    buffer: BitBuffer,
+    file: File,
+}
 
 struct BitBuffer {
     bits: u8,
@@ -40,16 +50,6 @@ impl BitBuffer {
         self.bits = 0;
         self.bcount = 0;
     }
-}
-
-pub struct BitWriter {
-    buffer: BitBuffer,
-    file: File,
-}
-
-pub struct BitReader {
-    buffer: BitBuffer,
-    file: File,
 }
 
 impl BitWriter {
@@ -157,6 +157,7 @@ impl BitReader {
         }
     }
 
+    /// Read 5 bits from file.
     pub fn read_five_bits(&mut self) -> io::Result<Option<u8>> {
         let mut return_value: u8 = 0;
 
@@ -212,8 +213,48 @@ impl BitReader {
         Ok(Some(return_value)) // Return 5 bits.
     }
 
+    /// Read 8 bits from file.
     pub fn read_eight_bits(&mut self) -> io::Result<Option<u8>> {
-        Ok(None)
+        let mut return_value: u8 = 0;
+
+        // Empty buffer if it is full (8 bytes is a full buffer).
+        if self.buffer.bcount == BITS_PER_BYTE {
+            return_value = self.buffer.bits; // Store Return value.
+            self.buffer.clear();
+
+            return Ok(Some(return_value));
+        }
+
+        let mut new_data: [u8; 1] = [0; 1];
+
+        // Read data from file.
+        if self.file.read(&mut new_data)? == 0 {
+            return Ok(None); // No more data to be read from file.
+        }
+
+        let mut copy_bit; // Used to copy bits from new_data to buffer.
+
+        // Add bit from new_data to buffer and store return value when it's full.
+        for _ in 0..EIGHT_BITS {
+            self.buffer.bits = self.buffer.bits << 1; //Shift buffer over by one
+
+            copy_bit = HIGH_BIT & new_data[0]; // Get highest order bit from new_data
+            copy_bit = copy_bit >> (EIGHT_BITS - 1); // Shift bit from highest to lowest order.
+
+            new_data[0] &= !HIGH_BIT; // Clear highest order bit from new_data.
+            new_data[0] = new_data[0] << 1; // Shift new_data over by one.
+
+            self.buffer.bits = self.buffer.bits | copy_bit; //Copy new data to buffer
+            self.buffer.bcount += 1; // Increment bit count.
+
+            // If buffer is full, store return value and clear buffer.
+            if self.buffer.bcount == EIGHT_BITS {
+                return_value = self.buffer.bits; // Store buffer as return value.
+                self.buffer.clear();
+            }
+        }
+
+        Ok(Some(return_value)) // Return 8 bits.
     }
 }
 
