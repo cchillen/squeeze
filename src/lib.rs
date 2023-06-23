@@ -23,15 +23,15 @@ pub fn run(input_file: String, output_file: String) -> Result<(), Box<dyn Error>
 
     let writer = BitWriter::new(output);
 
-    let encoder = Encoder::new();
-
-    squeeze(input, writer, encoder);
+    squeeze(input, writer);
 
     Ok(())
 }
 
 /// Implementation of the compression algorithm.
-fn squeeze(input: File, mut writer: BitWriter, encoder: Encoder) {
+fn squeeze(input: File, mut writer: BitWriter) {
+    let encoder = Encoder::new();
+
     // Write the format code before compression.
     writer.write_five_bits(FORMAT_CODE);
 

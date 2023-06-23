@@ -1,5 +1,7 @@
 //! Contains code for interacting with files.
 use std::fs::File;
+use std::io;
+use std::io::prelude::*;
 use std::io::Write;
 use std::slice;
 
@@ -45,11 +47,16 @@ pub struct BitWriter {
     file: File,
 }
 
+pub struct BitReader {
+    buffer: BitBuffer,
+    file: File,
+}
+
 impl BitWriter {
     pub fn new(file: File) -> Self {
         BitWriter {
             buffer: BitBuffer::new(),
-            file: file,
+            file,
         }
     }
 
@@ -139,6 +146,74 @@ impl BitWriter {
         self.file.write(slice::from_ref(&self.buffer.bits)).unwrap();
 
         self.buffer.clear();
+    }
+}
+
+impl BitReader {
+    pub fn new(file: File) -> Self {
+        BitReader {
+            buffer: BitBuffer::new(),
+            file,
+        }
+    }
+
+    pub fn read_five_bits(&mut self) -> io::Result<Option<u8>> {
+        let mut return_value: u8 = 0;
+
+        // Return if buffer contains 5 or more bits.
+        if self.buffer.bcount >= FIVE_BITS {
+            // Shift buffer over all the way.
+            self.buffer.bits = self.buffer.bits << (EIGHT_BITS - self.buffer.bcount);
+            // Mask off the 5 higher order bits.
+            return_value = self.buffer.bits & HIGH_5_MASK;
+            // Shift return value back down.
+            return_value = return_value >> (EIGHT_BITS - FIVE_BITS);
+            // Clear the 5 higher order bits.
+            self.buffer.bits = self.buffer.bits & !HIGH_5_MASK;
+            // Shift buffer back to normal.
+            self.buffer.bits = self.buffer.bits >> (EIGHT_BITS - self.buffer.bcount);
+            // Decrement bit count by 5.
+            self.buffer.bcount -= FIVE_BITS;
+
+            return Ok(Some(return_value));
+        }
+
+        let mut new_data: [u8; 1] = [0; 1];
+
+        // Read data from file.
+        if self.file.read(&mut new_data)? == 0 {
+            return Ok(None); // No more data to be read from file.
+        }
+
+        let mut output_found = false; // True if return value has been assigned.
+        let mut copy_bit; // Used to copy bits from new_data to buffer.
+
+        // Add byte from raw buffer to bit buffer and return value all data has been added.
+        for _ in 0..EIGHT_BITS {
+            self.buffer.bits = self.buffer.bits << 1; // Shift buffer over by one. 
+
+            copy_bit = HIGH_BIT & new_data[0]; // Get highest order bit from new_data.
+            copy_bit = copy_bit >> (EIGHT_BITS - 1); // Shift bit from highest to lowest order.
+
+            new_data[0] &= !HIGH_BIT; // Clear highest order bit from new_data.
+            new_data[0] = new_data[0] << 1; // Shift new_data over by one.
+
+            self.buffer.bits = self.buffer.bits | copy_bit; // Copy new data to buffer.
+            self.buffer.bcount += 1; // Increment bit count.
+
+            // If buffer contains at least 5 bits, store return value and update buffer.
+            if self.buffer.bcount >= FIVE_BITS && !output_found {
+                output_found = true;
+                return_value = self.buffer.bits;
+                self.buffer.clear();
+            }
+        }
+
+        Ok(Some(return_value)) // Return 5 bits.
+    }
+
+    pub fn read_eight_bits(&mut self) -> io::Result<Option<u8>> {
+        Ok(None)
     }
 }
 
