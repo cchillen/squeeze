@@ -65,8 +65,8 @@ impl Encoder {
         }
 
         Encoder {
-            codes: codes,
-            letters: letters,
+            codes,
+            letters,
         }
     }
 
